@@ -52,11 +52,11 @@ function updateFeeds () {
       });
     }
   );
-  // Allow updateCache() recursion again
-  updatingFeeds = false;
 
   // Give feeder some time to fetch all feeds
   setTimeout(() => {
+    // Allow updateCache() recursion again
+    updatingFeeds = false;
     updateCache();
   }, 30000);
 
@@ -99,15 +99,17 @@ feeder.on('new-item', item => {
     .write()
   
   // Send to all connected clients immediately
-  wss.clients.forEach(function(client) {
-    if (client.readyState === WebSocket.OPEN ) {
-      client.send(JSON.stringify([{
-        title: item.title,
-        date: item.date,
-        link: item.link
-      }]));
-    }
-  });
+  if (!updatingFeeds) {
+    wss.clients.forEach(function(client) {
+      if (client.readyState === WebSocket.OPEN ) {
+        client.send(JSON.stringify([{
+          title: item.title,
+          date: item.date,
+          link: item.link
+        }]));
+      }
+    });
+  }
   // Allow cache to be updated
   newItem = true;
 });
