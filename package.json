@@ -1,0 +1,11 @@
+{
+  "name": "feed-websocket",
+  "version": "0.0.1",
+  "description": "Node.js WebSocket server who delivers feeds gathered via JSON API",
+  "dependencies": {
+    "express": "^4.17.1",
+    "lowdb": "^1.0.0",
+    "rss-feed-emitter": "^2.0.1",
+    "ws": "^7.2.0"
+  }
+}
