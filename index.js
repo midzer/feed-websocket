@@ -134,11 +134,9 @@ wss.on('connection', function(socket) {
     if (message !== 'ping') {
       return;
     }
-    wss.clients.forEach(function(client) {
-      if (client === socket && client.readyState === WebSocket.OPEN ) {
-        client.send('pong');
-      }
-    });
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send('pong');
+    }
   });
 
   socket.on('close', function() {
