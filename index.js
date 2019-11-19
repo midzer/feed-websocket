@@ -82,7 +82,7 @@ function updateCache () {
     if (!updatingFeeds) {
       updateCache();
     }
-  }, 1000);
+  }, 30000);
 }
 
 feeder.on('new-item', item => {
