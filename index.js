@@ -130,6 +130,17 @@ wss.on('connection', function(socket) {
     }
   }
 
+  socket.on('message', function(message) {
+    if (message !== 'ping') {
+      return;
+    }
+    wss.clients.forEach(function(client) {
+      if (client === socket && client.readyState === WebSocket.OPEN ) {
+        client.send('pong');
+      }
+    });
+  });
+
   socket.on('close', function() {
     console.log('user disconnected');
   });
