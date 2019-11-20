@@ -23,9 +23,12 @@ const db = low(adapter);
 let connectMessage;
 let newItem;
 let updatingFeeds;
+let cacheTimeout;
 
 function updateFeeds () {
   // Stop updateCache() recursion
+  clearTimeout(cacheTimeout);
+
   updatingFeeds = true;
 
   // Clear db
@@ -39,6 +42,7 @@ function updateFeeds () {
   // Remove all feeds
   feeder.destroy();
 
+  // Fetch endpoint .json
   request({
     url: API_ENDPOINT,
     json: true
@@ -50,16 +54,15 @@ function updateFeeds () {
           url: feed
         });
       });
+      // Give feeder some time to fetch all feeds
+      cacheTimeout = setTimeout(() => {
+        // Allow sending to clients again
+        updatingFeeds = false;
+        
+        updateCache();
+      }, 60000);
     }
   );
-
-  // Give feeder some time to fetch all feeds
-  setTimeout(() => {
-    // Allow updateCache() recursion again
-    updatingFeeds = false;
-    updateCache();
-  }, 30000);
-
   // Update feeds daily
   setTimeout(() => {
     updateFeeds();
@@ -78,10 +81,8 @@ function updateCache () {
     newItem = false;
   }
   // Start recursion
-  setTimeout(() => {
-    if (!updatingFeeds) {
-      updateCache();
-    }
+  cacheTimeout = setTimeout(() => {
+    updateCache();
   }, 30000);
 }
 
