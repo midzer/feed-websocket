@@ -131,10 +131,7 @@ wss.on('connection', function(socket) {
   }
 
   socket.on('message', function(message) {
-    if (message !== 'ping') {
-      return;
-    }
-    if (socket.readyState === WebSocket.OPEN) {
+    if (message === 'ping' && socket.readyState === WebSocket.OPEN) {
       socket.send('pong');
     }
   });
