@@ -115,7 +115,7 @@ wss.on('connection', function(socket) {
       socket.send(JSON.stringify([{
         title: "Server ist gerade beschäftigt, bitte Seite neu laden",
         date: new Date().toISOString(),
-        link: "/"
+        link: ""
       }]));
     }
   }
