@@ -21,14 +21,10 @@ const db = low(adapter);
 
 // Globals
 let connectMessage;
-let newItem;
 let updatingFeeds;
 let cacheTimeout;
 
 function updateFeeds () {
-  // Stop updateCache() recursion
-  clearTimeout(cacheTimeout);
-
   updatingFeeds = true;
 
   // Clear db
@@ -54,13 +50,10 @@ function updateFeeds () {
           url: feed
         });
       });
-      // Give feeder some time to fetch all feeds
-      cacheTimeout = setTimeout(() => {
-        // Allow sending to clients again
+      // Let's assume updating all feeds is finished after 30s
+      setTimeout(() => {
         updatingFeeds = false;
-        
-        updateCache();
-      }, 60000);
+      }, 30000);
     }
   );
   // Update feeds daily
@@ -70,20 +63,11 @@ function updateFeeds () {
 }
 
 function updateCache () {
-  if (newItem) {
-    const entries = db.get('log')
-                      .sortBy('date')
-                      .takeRight(25)
-                      .value();
-    connectMessage = JSON.stringify(entries);
-
-    // Wait for another new item first
-    newItem = false;
-  }
-  // Start recursion
-  cacheTimeout = setTimeout(() => {
-    updateCache();
-  }, 30000);
+  const entries = db.get('log')
+                    .sortBy('date')
+                    .takeRight(25)
+                    .value();
+  connectMessage = JSON.stringify(entries);
 }
 
 feeder.on('new-item', item => {
@@ -94,6 +78,9 @@ feeder.on('new-item', item => {
   if (link) {
     return;
   }
+  // Stop current timeout
+  clearTimeout(cacheTimeout);
+
   // Push to db
   db.get('log')
     .push({ title: item.title, date: item.date, link: item.link})
@@ -111,8 +98,10 @@ feeder.on('new-item', item => {
       }
     });
   }
-  // Allow cache to be updated
-  newItem = true;
+  // Update cache after 30s if no new item comes in
+  cacheTimeout = setTimeout(() => {
+    updateCache();
+  }, 30000);
 });
 
 wss.on('connection', function(socket) {
