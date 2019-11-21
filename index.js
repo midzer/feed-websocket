@@ -53,7 +53,7 @@ function updateFeeds () {
       // Let's assume updating all feeds is finished after 30s
       setTimeout(() => {
         updatingFeeds = false;
-      }, 30000);
+      }, 60000);
     }
   );
   // Update feeds daily
