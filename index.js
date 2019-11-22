@@ -106,10 +106,10 @@ feeder.on('new-item', item => {
       }
     });
   }
-  // Update cache after 30s if no new item comes in
+  // Update cache after 10s if no new item comes in
   cacheTimeout = setTimeout(() => {
     updateCache();
-  }, 30000);
+  }, 10000);
 });
 
 wss.on('connection', function(socket) {
