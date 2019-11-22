@@ -70,6 +70,10 @@ function updateCache () {
   connectMessage = JSON.stringify(entries);
 }
 
+function removeTags (string) {
+  return string.replace(/<(?:.|\n)*?>/gm, '').trim()
+}
+
 feeder.on('new-item', item => {
   // Skip already existing links
   const link = db.get('log')
@@ -81,20 +85,24 @@ feeder.on('new-item', item => {
   // Stop current timeout
   clearTimeout(cacheTimeout);
 
+  // Create item
+  const newItem = {
+    title: item.title,
+    date: item.date,
+    link: item.link,
+    summary: removeTags(item.summary)
+  }
+
   // Push to db
   db.get('log')
-    .push({ title: item.title, date: item.date, link: item.link})
+    .push(newItem)
     .write()
   
   // Send to all connected clients immediately
   if (!updatingFeeds) {
     wss.clients.forEach(function(client) {
       if (client.readyState === WebSocket.OPEN ) {
-        client.send(JSON.stringify([{
-          title: item.title,
-          date: item.date,
-          link: item.link
-        }]));
+        client.send(JSON.stringify([newItem]));
       }
     });
   }
