@@ -95,7 +95,7 @@ feeder.on('new-item', item => {
   // Create item
   const newItem = {
     title: item.title,
-    date: item.date,
+    date: item.date || new Date().toISOString(),
     link: item.link,
     summary: removeTags(item.summary)
   }
