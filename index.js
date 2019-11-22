@@ -92,7 +92,6 @@ feeder.on('new-item', item => {
     link: item.link,
     summary: removeTags(item.summary)
   }
-
   // Push to db
   db.get('log')
     .push(newItem)
