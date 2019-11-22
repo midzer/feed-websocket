@@ -12,6 +12,7 @@ const RssFeedEmitter = require('rss-feed-emitter');
 const feeder = new RssFeedEmitter();
 
 const request = require('request');
+const crypto = require('crypto');
 
 const API_ENDPOINT = 'http://localhost:4000/feeds.json';
 const WEBSOCKET_PORT = 63409;
@@ -23,20 +24,10 @@ const db = low(adapter);
 let connectMessage;
 let updatingFeeds;
 let cacheTimeout;
+let feedsHash;
 
 function updateFeeds () {
   updatingFeeds = true;
-
-  // Clear db
-  db.unset('log')
-    .write()
-  
-  // Set some defaults
-  db.defaults({ log: [] })
-    .write();
-
-  // Remove all feeds
-  feeder.destroy();
 
   // Fetch endpoint .json
   request({
@@ -44,22 +35,38 @@ function updateFeeds () {
     json: true
     },
     function (error, response, body) {
-      body.forEach(feed => {
+      const md5 = crypto.createHash('md5').update(JSON.stringify(body)).digest('hex');
+      if (md5 !== feedsHash) {
+        feedsHash = md5;
+
+        // Clear db
+        db.unset('log')
+          .write()
+
+        // Set some defaults
+        db.defaults({ log: [] })
+          .write();
+
+        // Remove all feeds
+        feeder.destroy();
+
         // Add all feeds
-        feeder.add({
-          url: feed
+        body.forEach(feed => {
+          feeder.add({
+            url: feed
+          });
         });
-      });
-      // Let's assume updating all feeds is finished after 30s
-      setTimeout(() => {
-        updatingFeeds = false;
-      }, 60000);
+        // Let's assume updating all feeds is finished after 120s
+        setTimeout(() => {
+          updatingFeeds = false;
+        }, 120000);
+      }
     }
   );
-  // Update feeds daily
+  // Update feeds every hour
   setTimeout(() => {
     updateFeeds();
-  }, 24 * 60 * 60 * 1000);
+  }, 60 * 60 * 1000);
 }
 
 function updateCache () {
