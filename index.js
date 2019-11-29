@@ -27,17 +27,17 @@ let cacheTimeout;
 let feedsHash;
 
 function updateFeeds () {
-  updatingFeeds = true;
-
   // Fetch endpoint .json
   request({
-    url: API_ENDPOINT,
-    json: true
+    url: API_ENDPOINT
     },
     function (error, response, body) {
-      const md5 = crypto.createHash('md5').update(JSON.stringify(body)).digest('hex');
+      const md5 = crypto.createHash('md5').update(body).digest('hex');
       if (md5 !== feedsHash) {
         feedsHash = md5;
+
+        // Dont send to clients while updating
+        updatingFeeds = true;
 
         // Clear db
         db.unset('log')
@@ -51,7 +51,7 @@ function updateFeeds () {
         feeder.destroy();
 
         // Add all feeds
-        body.forEach(feed => {
+        JSON.parse(body).forEach(feed => {
           feeder.add({
             url: feed
           });
@@ -99,11 +99,6 @@ feeder.on('new-item', item => {
     link: item.link,
     summary: removeTags(item.summary)
   }
-  // Push to db
-  db.get('log')
-    .push(newItem)
-    .write()
-  
   // Send to all connected clients immediately
   if (!updatingFeeds) {
     wss.clients.forEach(function(client) {
@@ -112,6 +107,11 @@ feeder.on('new-item', item => {
       }
     });
   }
+  // Push to db
+  db.get('log')
+    .push(newItem)
+    .write()
+  
   // Update cache after 10s if no new item comes in
   cacheTimeout = setTimeout(() => {
     updateCache();
