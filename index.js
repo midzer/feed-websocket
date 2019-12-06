@@ -14,6 +14,8 @@ const feeder = new RssFeedEmitter();
 const request = require('request');
 const crypto = require('crypto');
 
+const he = require('he');
+
 const API_ENDPOINT = 'http://localhost:4000/feeds.json';
 const WEBSOCKET_PORT = 63409;
 
@@ -97,7 +99,7 @@ feeder.on('new-item', item => {
     title: item.title,
     date: item.date || new Date().toISOString(),
     link: item.link,
-    summary: removeTags(item.summary)
+    summary: he.decode(removeTags(item.summary))
   }
   // Send to all connected clients immediately
   if (!updatingFeeds) {
