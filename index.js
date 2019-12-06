@@ -84,6 +84,10 @@ function removeTags (string) {
 }
 
 feeder.on('new-item', item => {
+  // Skip empty titles
+  if (!item.title) {
+    return;
+  }
   // Skip already existing links
   const link = db.get('log')
                  .find({ link: item.link })
