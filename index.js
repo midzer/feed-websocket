@@ -182,41 +182,43 @@ wss.on('connection', function(socket) {
 });
 
 // Subscription management
-app.post('/subscribe', (req, res) => {
-  // Push to db
-  const subscription = req.body;
-  dbUsers.get('users')
-    .push(subscription)
-    .write()
-  
-  // Notify users instantly
-  const payload = JSON.stringify({
-    title: 'Push-Benachrichtungen aktivieren',
-    body: 'Das hat funktioniert :)'
-  });
-  webpush.sendNotification(subscription, payload).catch(error => {
-    console.error(error.stack);
-  });
-  // Leave proper status code
-  res.status(201).json({ message: 'Subscribed successfully' });
-});
-
-app.post('/unsubscribe', (req, res) => {
-  // Remove from db
-  const subscription = req.body;
-  dbUsers.get('users')
-    .remove({ endpoint: subscription.endpoint })
-    .write()
-  
-  // Leave proper status code
-  res.status(204).json({ message: 'Unsubscribed successfully' });
+app.post('/', (req, res) => {
+  const data = req.body;
+  if (data.do === 'subscribe') {
+    // Push to db
+    const subscription = JSON.parse(data.subscription);
+    dbUsers.get('users')
+      .push(subscription)
+      .write()
+    
+    // Notify users instantly
+    const payload = JSON.stringify({
+      title: 'Push-Benachrichtungen aktivieren',
+      body: 'Das hat funktioniert :)'
+    });
+    webpush.sendNotification(subscription, payload).catch(error => {
+      console.error(error.stack);
+    });
+    // Leave proper status code
+    res.status(201).json({ message: 'Subscribed successfully' });
+  }
+  else if (data.do === 'unsubscribe') {
+    // Remove from db
+    const endpoint = data.endpoint;
+    dbUsers.get('users')
+      .remove({ endpoint: endpoint })
+      .write()
+    
+    // Leave proper status code
+    res.status(204).json({ message: 'Unsubscribed successfully' });
+  }
 });
 
 // Listen to incoming users and messages
 server.listen(config.port, function() {
   console.log(`listening on *:${config.port}`);
 });
-app.listen(3000);
+app.listen(40780);
 
 // Kickstart
 updateFeeds();
