@@ -182,7 +182,7 @@ wss.on('connection', function(socket) {
 });
 
 // Subscription management
-app.post('/', (req, res) => {
+app.post('/api/push', (req, res) => {
   const data = req.body;
   if (data.do === 'subscribe') {
     // Push to db
