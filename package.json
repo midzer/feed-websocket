@@ -3,10 +3,12 @@
   "version": "0.0.1",
   "description": "Node.js WebSocket server who delivers feeds gathered via JSON API",
   "dependencies": {
+    "body-parser": "^1.19.0",
     "express": "^4.17.1",
     "he": "^1.2.0",
     "lowdb": "^1.0.0",
     "rss-feed-emitter": "^2.0.1",
+    "web-push": "^3.4.3",
     "ws": "^7.2.0"
   }
 }

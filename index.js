@@ -2,11 +2,20 @@ var app = require('express')();
 var http = require('http');
 var server = http.createServer(app);
 
+var bodyParser = require('body-parser');
+app.use(bodyParser.json())
+
 var WebSocket = require('ws');
 var wss = new WebSocket.Server({ server });
 
 const low = require('lowdb');
 const FileSync = require('lowdb/adapters/FileSync');
+const db = low(new FileSync('db.json'));
+const dbUsers = low(new FileSync('users.json'));
+
+// Set some defaults
+dbUsers.defaults({ users: [] })
+  .write();
 
 const RssFeedEmitter = require('rss-feed-emitter');
 const feeder = new RssFeedEmitter();
@@ -16,11 +25,14 @@ const crypto = require('crypto');
 
 const he = require('he');
 
-const API_ENDPOINT = 'http://localhost:4000/feeds.json';
-const WEBSOCKET_PORT = 63409;
+const config = require('./config.json');
 
-const adapter = new FileSync('db.json');
-const db = low(adapter);
+const webpush = require('web-push');
+webpush.setVapidDetails(
+  config.email,
+  config.publicKey,
+  config.privateKey
+)
 
 // Globals
 let connectMessage;
@@ -31,7 +43,7 @@ let feedsHash;
 function updateFeeds () {
   // Fetch endpoint .json
   request({
-    url: API_ENDPOINT
+    url: config.endpoint
     },
     function (error, response, body) {
       const md5 = crypto.createHash('md5').update(body).digest('hex');
@@ -107,10 +119,28 @@ feeder.on('new-item', item => {
   }
   // Send to all connected clients immediately
   if (!updatingFeeds) {
+    // via WebSocket
     wss.clients.forEach(function(client) {
       if (client.readyState === WebSocket.OPEN ) {
         client.send(JSON.stringify([newItem]));
       }
+    });
+    // via Push
+    const url = new URL(item.link);
+    let hostname = url.hostname;
+    if (hostname.startsWith('www.')) {
+      hostname = hostname.replace('www.', '');
+    }
+    const payload = JSON.stringify({
+      title: 'Neuer Feed',
+      body: `${hostname} | ${item.title}`
+    });
+    const subscriptions = dbUsers.get('users')
+      .value();
+    subscriptions.forEach(function(subscription) {
+      webpush.sendNotification(subscription, payload).catch(error => {
+        console.error(error.stack);
+      });
     });
   }
   // Push to db
@@ -151,8 +181,42 @@ wss.on('connection', function(socket) {
   });
 });
 
-server.listen(WEBSOCKET_PORT, function() {
-  console.log(`listening on *:${WEBSOCKET_PORT}`);
+// Subscription management
+app.post('/subscribe', (req, res) => {
+  // Push to db
+  const subscription = req.body;
+  dbUsers.get('users')
+    .push(subscription)
+    .write()
+  
+  // Notify users instantly
+  const payload = JSON.stringify({
+    title: 'Push-Benachrichtungen aktivieren',
+    body: 'Das hat funktioniert :)'
+  });
+  webpush.sendNotification(subscription, payload).catch(error => {
+    console.error(error.stack);
+  });
+  // Leave proper status code
+  res.status(201).json({ message: 'Subscribed successfully' });
 });
+
+app.post('/unsubscribe', (req, res) => {
+  // Remove from db
+  const subscription = req.body;
+  dbUsers.get('users')
+    .remove({ endpoint: subscription.endpoint })
+    .write()
+  
+  // Leave proper status code
+  res.status(204).json({ message: 'Unsubscribed successfully' });
+});
+
+// Listen to incoming users and messages
+server.listen(config.port, function() {
+  console.log(`listening on *:${config.port}`);
+});
+app.listen(3000);
+
 // Kickstart
 updateFeeds();
