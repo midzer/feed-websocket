@@ -182,7 +182,13 @@ wss.on('connection', function(socket) {
 });
 
 // Subscription management
-app.post('/api/push', (req, res) => {
+app.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "https://feed-dachau.de");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
+
+app.post('/push', (req, res) => {
   const data = req.body;
   if (data.do === 'subscribe') {
     // Push to db
