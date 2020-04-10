@@ -18,7 +18,7 @@ dbUsers.defaults({ users: [] })
   .write();
 
 const RssFeedEmitter = require('rss-feed-emitter');
-const feeder = new RssFeedEmitter();
+const feeder = new RssFeedEmitter({ skipFirstLoad: true });
 
 const request = require('request');
 const crypto = require('crypto');
@@ -35,8 +35,11 @@ webpush.setVapidDetails(
 )
 
 // Globals
-let connectMessage;
-let updatingFeeds;
+let connectMessage = JSON.stringify([{
+  title: "Server ist gerade beschäftigt, bitte Seite neu laden",
+  date: new Date().toISOString(),
+  link: ""
+}]);
 let cacheTimeout;
 let feedsHash;
 
@@ -50,9 +53,6 @@ function updateFeeds () {
       if (md5 !== feedsHash) {
         feedsHash = md5;
 
-        // Dont send to clients while updating
-        updatingFeeds = true;
-
         // Clear db
         db.unset('log')
           .write()
@@ -65,15 +65,9 @@ function updateFeeds () {
         feeder.destroy();
 
         // Add all feeds
-        JSON.parse(body).forEach(feed => {
-          feeder.add({
-            url: feed
-          });
+        feeder.add({
+          url: JSON.parse(body)
         });
-        // Let's assume updating all feeds is finished after 120s
-        setTimeout(() => {
-          updatingFeeds = false;
-        }, 120000);
       }
     }
   );
@@ -92,7 +86,7 @@ function updateCache () {
 }
 
 function removeTags (string) {
-  return string.replace(/<(?:.|\n)*?>/gm, '').trim()
+  return string ? string.replace(/<(?:.|\n)*?>/gm, '').trim() : '';
 }
 
 feeder.on('new-item', item => {
@@ -118,31 +112,29 @@ feeder.on('new-item', item => {
     summary: he.decode(removeTags(item.summary))
   }
   // Send to all connected clients immediately
-  if (!updatingFeeds) {
-    // via WebSocket
-    wss.clients.forEach(function(client) {
-      if (client.readyState === WebSocket.OPEN ) {
-        client.send(JSON.stringify([newItem]));
-      }
-    });
-    // via Push
-    const url = new URL(item.link);
-    let hostname = url.hostname;
-    if (hostname.startsWith('www.')) {
-      hostname = hostname.replace('www.', '');
+  // via WebSocket
+  wss.clients.forEach(function(client) {
+    if (client.readyState === WebSocket.OPEN ) {
+      client.send(JSON.stringify([newItem]));
     }
-    const payload = JSON.stringify({
-      title: 'Neuer Feed',
-      body: `${hostname} | ${item.title}`
-    });
-    const subscriptions = dbUsers.get('users')
-      .value();
-    subscriptions.forEach(function(subscription) {
-      webpush.sendNotification(subscription, payload).catch(error => {
-        console.error(error.stack);
-      });
-    });
+  });
+  // via Push
+  const url = new URL(item.link);
+  let hostname = url.hostname;
+  if (hostname.startsWith('www.')) {
+    hostname = hostname.replace('www.', '');
   }
+  const payload = JSON.stringify({
+    title: 'Neuer Feed',
+    body: `${hostname} | ${item.title}`
+  });
+  const subscriptions = dbUsers.get('users')
+    .value();
+  subscriptions.forEach(function(subscription) {
+    webpush.sendNotification(subscription, payload).catch(error => {
+      console.error(error.stack);
+    });
+  });
   // Push to db
   db.get('log')
     .push(newItem)
@@ -157,17 +149,7 @@ feeder.on('new-item', item => {
 wss.on('connection', function(socket) {
   console.log('a user connected');
   if (socket.readyState === WebSocket.OPEN) {
-    if (connectMessage) {
-      socket.send(connectMessage);
-    }
-    else {
-      // On launch connectMessage might still be empty
-      socket.send(JSON.stringify([{
-        title: "Server ist gerade beschäftigt, bitte Seite neu laden",
-        date: new Date().toISOString(),
-        link: ""
-      }]));
-    }
+    socket.send(connectMessage);
   }
 
   socket.on('message', function(message) {
