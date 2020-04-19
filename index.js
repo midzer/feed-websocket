@@ -146,6 +146,8 @@ feeder.on('new-item', item => {
   }, 10000);
 });
 
+feeder.on('error', console.error);
+
 wss.on('connection', function(socket) {
   console.log('a user connected');
   if (socket.readyState === WebSocket.OPEN) {
