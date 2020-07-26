@@ -203,7 +203,6 @@ app.post('/push', (req, res) => {
     res.status(204).json({ message: 'Unsubscribed successfully' });
   }
 });
-
 // Listen to incoming users and messages
 server.listen(config.port, function() {
   console.log(`listening on *:${config.port}`);
