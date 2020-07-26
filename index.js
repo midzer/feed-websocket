@@ -7,39 +7,36 @@ var wss = new WebSocket.Server({ server });
 
 const low = require('lowdb');
 const FileSync = require('lowdb/adapters/FileSync');
+const db = low(new FileSync('db.json'));
 
 const RssFeedEmitter = require('rss-feed-emitter');
-const feeder = new RssFeedEmitter();
+const feeder = new RssFeedEmitter({ skipFirstLoad: true });
 
 const request = require('request');
 const crypto = require('crypto');
 
 const he = require('he');
 
-const API_ENDPOINT = 'http://localhost:4000/feeds.json';
-const WEBSOCKET_PORT = 63409;
-
-const adapter = new FileSync('db.json');
-const db = low(adapter);
+const config = require('./config.json');
 
 // Globals
-let connectMessage;
-let updatingFeeds;
+let connectMessage = JSON.stringify([{
+  title: "Server ist gerade beschäftigt, bitte Seite neu laden",
+  date: new Date().toISOString(),
+  link: ""
+}]);
 let cacheTimeout;
 let feedsHash;
 
 function updateFeeds () {
   // Fetch endpoint .json
   request({
-    url: API_ENDPOINT
+    url: config.endpoint
     },
     function (error, response, body) {
       const md5 = crypto.createHash('md5').update(body).digest('hex');
       if (md5 !== feedsHash) {
         feedsHash = md5;
-
-        // Dont send to clients while updating
-        updatingFeeds = true;
 
         // Clear db
         db.unset('log')
@@ -53,15 +50,9 @@ function updateFeeds () {
         feeder.destroy();
 
         // Add all feeds
-        JSON.parse(body).forEach(feed => {
-          feeder.add({
-            url: feed
-          });
+        feeder.add({
+          url: JSON.parse(body)
         });
-        // Let's assume updating all feeds is finished after 120s
-        setTimeout(() => {
-          updatingFeeds = false;
-        }, 120000);
       }
     }
   );
@@ -80,7 +71,7 @@ function updateCache () {
 }
 
 function removeTags (string) {
-  return string.replace(/<(?:.|\n)*?>/gm, '').trim()
+  return string ? string.replace(/<(?:.|\n)*?>/gm, '').trim() : '';
 }
 
 feeder.on('new-item', item => {
@@ -106,13 +97,12 @@ feeder.on('new-item', item => {
     summary: he.decode(removeTags(item.summary))
   }
   // Send to all connected clients immediately
-  if (!updatingFeeds) {
-    wss.clients.forEach(function(client) {
-      if (client.readyState === WebSocket.OPEN ) {
-        client.send(JSON.stringify([newItem]));
-      }
-    });
-  }
+  // via WebSocket
+  wss.clients.forEach(function(client) {
+    if (client.readyState === WebSocket.OPEN ) {
+      client.send(JSON.stringify([newItem]));
+    }
+  });
   // Push to db
   db.get('log')
     .push(newItem)
@@ -124,20 +114,12 @@ feeder.on('new-item', item => {
   }, 10000);
 });
 
+feeder.on('error', console.error);
+
 wss.on('connection', function(socket) {
   console.log('a user connected');
   if (socket.readyState === WebSocket.OPEN) {
-    if (connectMessage) {
-      socket.send(connectMessage);
-    }
-    else {
-      // On launch connectMessage might still be empty
-      socket.send(JSON.stringify([{
-        title: "Server ist gerade beschäftigt, bitte Seite neu laden",
-        date: new Date().toISOString(),
-        link: ""
-      }]));
-    }
+    socket.send(connectMessage);
   }
 
   socket.on('message', function(message) {
@@ -151,8 +133,8 @@ wss.on('connection', function(socket) {
   });
 });
 
-server.listen(WEBSOCKET_PORT, function() {
-  console.log(`listening on *:${WEBSOCKET_PORT}`);
+server.listen(config.port, function() {
+  console.log(`listening on *:${config.port}`);
 });
 // Kickstart
 updateFeeds();
