@@ -74,7 +74,7 @@ function createFeeder(protocol) {
       // Send to all connected clients immediately
       // via WebSocket
       wss.clients.forEach(function(client) {
-        if (client.protocol.replace(/_/g, '/') === protocol && client.readyState === WebSocket.OPEN ) {
+        if (client.protocol.replace(/_/g, '-') === protocol && client.readyState === WebSocket.OPEN ) {
           client.send(JSON.stringify([newItem]));
         }
       });
@@ -116,7 +116,7 @@ function removeTags (string) {
 wss.on('connection', function(socket) {
   console.log('a user connected');
   if (socket.readyState === WebSocket.OPEN) {
-    const protocol = socket.protocol.replace(/_/g, '/');
+    const protocol = socket.protocol.replace(/_/g, '-');
     
     // Send back
     if (connectMessages.has(protocol)) {
@@ -142,7 +142,7 @@ wss.on('connection', function(socket) {
       }
       else {
         // TODO: send error message if URL is down or no RSS feed
-        const protocol = socket.protocol.replace(/_/g, '/');
+        const protocol = socket.protocol.replace(/_/g, '-');
 
         // Check if exists
         const db = createDb('./data/' + protocol + '/', 'feeds.json');
