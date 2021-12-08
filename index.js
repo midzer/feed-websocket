@@ -105,11 +105,12 @@ feeder.on('new-item', item => {
   clearTimeout(cacheTimeout);
 
   // Create item
+  const summary = he.decode(removeTags(item.summary));
   const newItem = {
     title: item.title,
     date: item.date || new Date().toISOString(),
     link: item.link,
-    summary: he.decode(removeTags(item.summary))
+    summary: summary
   }
   // Send to all connected clients immediately
   // via WebSocket
@@ -125,8 +126,9 @@ feeder.on('new-item', item => {
     hostname = hostname.replace('www.', '');
   }
   const payload = JSON.stringify({
-    title: 'Neuer Feed',
-    body: `${hostname} | ${item.title}`
+    title: `${hostname} | ${item.title}`,
+    body: summary,
+    link: item.link
   });
   const subscriptions = dbUsers.get('users')
     .value();
