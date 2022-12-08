@@ -14,6 +14,8 @@ const db = low(new FileSync('db.json'));
 const dbUsers = low(new FileSync('users.json'));
 
 // Set some defaults
+db.defaults({ log: [] })
+  .write();
 dbUsers.defaults({ users: [] })
   .write();
 
