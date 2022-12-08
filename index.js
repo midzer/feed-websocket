@@ -53,18 +53,7 @@ function updateFeeds () {
       if (md5 !== feedsHash) {
         feedsHash = md5;
 
-        // Clear db
-        db.unset('log')
-          .write()
-
-        // Set some defaults
-        db.defaults({ log: [] })
-          .write();
-
-        // Remove all feeds
-        feeder.destroy();
-
-        // Add all feeds
+        // Add all feeds (library handles dupes)
         feeder.add({
           url: JSON.parse(body)
         });
